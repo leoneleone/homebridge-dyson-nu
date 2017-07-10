@@ -50,6 +50,7 @@ CoolLink.prototype.initConnection = function() {
     });
 }
 CoolLink.prototype.initCommonSensors = function() {
+    this.log("CoolLink initCommonSensors");
     // Temperature sensor
     this.temperature_sensor = new Service.TemperatureSensor(this.name);
     this.temperature_sensor
@@ -67,25 +68,39 @@ CoolLink.prototype.initCommonSensors = function() {
     this.air_quality_sensor
         .getCharacteristic(Characteristic.AirQuality)
         .on('get', this.getAirQuality.bind(this));
-    // Fan
-    this.fan = new Service.Fan(this.name);
-    this.fan
-        .getCharacteristic(Characteristic.On)
-        .on('get', this.isFanOn.bind(this))
-        .on('set', this.setFan.bind(this));
-    this.fan
-        .getCharacteristic(Characteristic.On)
-        .eventEnabled = true;
-    this.fan
-        .getCharacteristic(Characteristic.RotationSpeed)
-        .on('get', this.getFanRotationSpeed.bind(this))
-        .on('set', this.setFanRotationSpeed.bind(this));
-    // Rotation switch
-    this.rotation_switch = new Service.Switch("Rotation - " + this.name, "Rotation");
-    this.rotation_switch
-        .getCharacteristic(Characteristic.On)
-        .on('get', this.isRotationOn.bind(this))
-        .on('set', this.setRotation.bind(this));
+    
+    // Fan v2
+    this.fanv2 = new Service.Fanv2(this.name);
+    this.fanv2
+    .getCharacteristic(Characteristic.Active)
+    .on('get', this.isFanOn.bind(this))
+    .on('set', this.setFan.bind(this))
+    .eventEnabled = true;
+    this.fanv2
+    .getCharacteristic(Characteristic.TargetFanState)
+    .on('get', this.isAutoOn.bind(this))
+    .on('set', this.setAuto.bind(this))
+    .eventEnabled = true;
+    this.fanv2
+    .getCharacteristic(Characteristic.RotationSpeed)
+    .setProps({minValue: 0, maxValue: 100, minStep: 10})
+    .on('get', this.getFanRotationSpeed.bind(this))
+    .on('set', this.setFanRotationSpeed.bind(this));
+    this.fanv2
+    .getCharacteristic(Characteristic.SwingMode)
+    .on('get', this.isRotationOn.bind(this))
+    .on('set', this.setRotation.bind(this));
+    this.fanv2
+    .addCharacteristic(Characteristic.NightVision)
+        .on('get', this.isNightOn.bind(this))
+        .on('set', this.setNight.bind(this));
+    //Power switch
+    this.power_switch = new Service.Switch("Power - " + this.name, "Power");
+    this.power_switch
+    .getCharacteristic(Characteristic.On)
+    .on('get', this.isFanOn.bind(this))
+    .on('set', this.setFan.bind(this))
+    .eventEnabled = true;
 }
 CoolLink.prototype.initSpecificSensors = function() {
     // Auto switch
@@ -100,12 +115,15 @@ CoolLink.prototype.initSpecificSensors = function() {
 }
 CoolLink.prototype.getServices = function() {
     return [
+        this.power_switch,
+        this.fanv2,
+//      this.night_switch,
         this.temperature_sensor,
         this.humidity_sensor,
         this.air_quality_sensor,
-        this.fan,
-        this.auto_switch,
-        this.rotation_switch,
+//        this.fan,
+//        this.auto_switch,
+//        this.rotation_switch,
     ];
 }
 CoolLink.prototype.getMQTTPrefix = function() {
@@ -217,6 +235,7 @@ CoolLink.prototype.setAuto = function(value, callback) {
     this.fan.getCharacteristic(Characteristic.On).updateValue(false);
     this.isAutoOn(callback);
 }
+
 CoolLink.prototype.isRotationOn = function(callback) {
     var that = this;
     this.json_emitter.once('state', (json) => {
@@ -227,6 +246,7 @@ CoolLink.prototype.isRotationOn = function(callback) {
     });
     this.requestCurrentState();
 }
+
 CoolLink.prototype.setRotation = function(value, callback) {
     var that = this;
     var now = new Date();
@@ -238,10 +258,160 @@ CoolLink.prototype.setRotation = function(value, callback) {
     );
     this.isRotationOn(callback);
 }
+
+CoolLink.prototype.isNightOn = function(callback) {
+    var that = this;
+    this.json_emitter.once('state', (json) => {
+        var nmod = json['product-state']['nmod'];
+        var on = (nmod === "ON")
+        that.log("Night:", on);
+        callback(null, on);
+    });
+    this.requestCurrentState();
+}
+
+CoolLink.prototype.setNight = function(value, callback) {
+    var that = this;
+    var now = new Date();
+    var nmod = value ? "ON" : "OFF";
+    var message = '{"msg":"STATE-SET","time":"' + now.toISOString() + '","data":{"nmod":"' + nmod + '"}}';
+    this.mqtt_client.publish(
+        this.getCommandTopic(),
+        message
+    );
+    this.isNightOn(callback);
+}
+
 function HotCoolLink(log, config) {
     CoolLink.call(this, log, config);
 }
+
 HotCoolLink.prototype = Object.create(CoolLink.prototype);
+
+HotCoolLink.prototype.getServices = function() {
+    this.log("HotCoolLink .getServices")
+    return [
+        this.heater_cooler,
+        this.temperature_sensor,
+        this.humidity_sensor,
+        this.air_quality_sensor,
+        this.fan,
+        this.auto_switch,
+        this.rotation_switch,
+        this.night_switch,
+    ];
+}
+
+HotCoolLink.prototype.getHeaterCoolerState = function(value, callback) {
+    this.log("HotCoolLink .getHeaterCoolerState")
+    var that = this;
+    this.json_emitter.once('state', (json) => {
+        var fmod = json['product-state']['fmod'];
+        var on = (fmod === "FAN");
+        var hmod = json['product-state']['hmod'];
+        var heating = (hmod === "HEAT");
+        var state = Characteristic.CurrentHeaterCoolerState.INACTIVE;
+        if (!on) {
+            state = Characteristic.CurrentHeaterCoolerState.INACTIVE;
+        } else {
+            if (heating) {
+                state = Characteristic.CurrentHeaterCoolerState.HEATING;
+            } else {
+                state = Characteristic.CurrentHeaterCoolerState.COOLING;
+            }
+        }
+        that.log("Heating:", state);
+        callback(null, state);
+    });
+}
+
+HotCoolLink.prototype.setHeaterCoolerState = function(value, callback) {
+    this.log("HotCoolLink .setHeaterCoolerState")
+    var that = this;
+    var now = new Date();
+    var hmod = value === Characteristic.CurrentHeaterCoolerState.HEATING ? "HEAT" : "OFF";
+    var message = '{"msg":"STATE-SET","time":"' + now.toISOString() + '","data":{"hmod":"' + hmod + '"}}';
+    this.mqtt_client.publish(
+        this.getCommandTopic(),
+        message
+    );
+    this.getHeaterCoolerState(callback);
+}
+
+HotCoolLink.prototype.isSwing = function(callback) {
+    var that = this;
+    this.json_emitter.once('state', (json) => {
+        var oson = json['product-state']['oson'];
+        var on = (oson === "ON")
+        that.log("Rotation:", on);
+        callback(null, on);
+    });
+    this.requestCurrentState();
+}
+
+HotCoolLink.prototype.initCommonSensors = function() {
+    this.log("HotCoolLink initCommonSensors");
+    this.heater_cooler = new Service.HeaterCooler(this.name);
+    // this.heater_cooler
+    //     .getCharacteristic(Characteristic.Active)
+    //     .on('get', this.isFanOn.bind(this))
+    //     .on('set', this.setFan.bind(this));
+
+    this.heater_cooler
+        .getCharacteristic(Characteristic.CurrentHeaterCoolerState)
+        .on('get', this.getHeaterCoolerState.bind(this))
+        .on('set', this.setHeaterCoolerState.bind(this));
+
+    // Temperature sensor
+    this.temperature_sensor = new Service.TemperatureSensor(this.name);
+    this.temperature_sensor
+        .getCharacteristic(Characteristic.CurrentTemperature)
+        .setProps({minValue: -50, maxValue: 100})
+        .on('get', this.getTemperature.bind(this));
+    // Humidity sensor
+    this.humidity_sensor = new Service.HumiditySensor(this.name);
+    this.humidity_sensor
+        .getCharacteristic(Characteristic.CurrentRelativeHumidity)
+        .setProps({minValue: 0, maxValue: 100})
+        .on('get', this.getRelativeHumidity.bind(this));
+    // Air Quality sensor
+    this.air_quality_sensor = new Service.AirQualitySensor(this.name);
+    this.air_quality_sensor
+        .getCharacteristic(Characteristic.AirQuality)
+        .on('get', this.getAirQuality.bind(this));
+    // Fan
+    this.fan = new Service.Fan(this.name);
+    this.fan
+        .getCharacteristic(Characteristic.On)
+        .on('get', this.isFanOn.bind(this))
+        .on('set', this.setFan.bind(this));
+
+    this.fan
+        .addCharacteristic(Characteristic.CurrentHeaterCoolerState)
+        .on('get', this.getHeaterCoolerState.bind(this))
+        .on('set', this.setHeaterCoolerState.bind(this));
+
+    this.fan
+        .getCharacteristic(Characteristic.On)
+        .eventEnabled = true;
+    this.fan
+        .getCharacteristic(Characteristic.RotationSpeed)
+        .setProps({minValue: 0, maxValue: 100, minStep: 10})
+        .on('get', this.getFanRotationSpeed.bind(this))
+        .on('set', this.setFanRotationSpeed.bind(this));
+    // Rotation switch
+    this.rotation_switch = new Service.Switch("Rotation - " + this.name, "Rotation");
+    this.rotation_switch
+        .getCharacteristic(Characteristic.On)
+        .on('get', this.isRotationOn.bind(this))
+        .on('set', this.setRotation.bind(this));
+    //Night Mode switch
+    this.night_switch = new Service.Switch("Night - " + this.name, "Night");
+    this.night_switch
+    .getCharacteristic(Characteristic.On)
+    .on('get', this.isNightOn.bind(this))
+    .on('set', this.setNight.bind(this));
+}
 HotCoolLink.prototype.constructor = HotCoolLink;
 HotCoolLink.prototype.getMQTTPrefix = function() {
     return "455";
