@@ -291,14 +291,14 @@ HotCoolLink.prototype = Object.create(CoolLink.prototype);
 HotCoolLink.prototype.getServices = function() {
     this.log("HotCoolLink .getServices")
     return [
-        this.heater_cooler,
-        this.temperature_sensor,
-        this.humidity_sensor,
-        this.air_quality_sensor,
+//        this.temperature_sensor,
+//        this.humidity_sensor,
+//        this.air_quality_sensor,
         this.fan,
+        this.heater_cooler,
         this.auto_switch,
-        this.rotation_switch,
-        this.night_switch,
+//        this.rotation_switch,
+//        this.night_switch,
     ];
 }
 
@@ -399,18 +399,34 @@ HotCoolLink.prototype.initCommonSensors = function() {
         .setProps({minValue: 0, maxValue: 100, minStep: 10})
         .on('get', this.getFanRotationSpeed.bind(this))
         .on('set', this.setFanRotationSpeed.bind(this));
-    // Rotation switch
-    this.rotation_switch = new Service.Switch("Rotation - " + this.name, "Rotation");
-    this.rotation_switch
-        .getCharacteristic(Characteristic.On)
+    this.fan
+        .addCharacteristic(Characteristic.SwingMode)
         .on('get', this.isRotationOn.bind(this))
         .on('set', this.setRotation.bind(this));
-    //Night Mode switch
-    this.night_switch = new Service.Switch("Night - " + this.name, "Night");
-    this.night_switch
-    .getCharacteristic(Characteristic.On)
-    .on('get', this.isNightOn.bind(this))
-    .on('set', this.setNight.bind(this));
+    this.fan
+        .addCharacteristic(Characteristic.NightVision)
+        .on('get', this.isNightOn.bind(this))
+        .on('set', this.setNight.bind(this));
+    // Auto switch
+    this.fan
+        .getCharacteristic(Characteristic.TargetFanState)
+        .on('get', this.isAutoOn.bind(this))
+        .on('set', this.setAuto.bind(this));
+    //this.auto_switch
+    //    .getCharacteristic(Characteristic.On)
+    //    .eventEnabled = true;    
+    // Rotation switch
+    //this.rotation_switch = new Service.Switch("Rotation - " + this.name, "Rotation");
+    //this.rotation_switch
+    //    .getCharacteristic(Characteristic.On)
+    //    .on('get', this.isRotationOn.bind(this))
+    //    .on('set', this.setRotation.bind(this));
+    // Night Mode switch
+    //this.night_switch = new Service.Switch("Night - " + this.name, "Night");
+    //this.night_switch
+    //    .getCharacteristic(Characteristic.On)
+    //    .on('get', this.isNightOn.bind(this))
+    //    .on('set', this.setNight.bind(this));
 }
 HotCoolLink.prototype.constructor = HotCoolLink;
 HotCoolLink.prototype.getMQTTPrefix = function() {
