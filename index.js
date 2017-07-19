@@ -95,12 +95,12 @@ CoolLink.prototype.initCommonSensors = function() {
         .on('get', this.isNightOn.bind(this))
         .on('set', this.setNight.bind(this));
     //Power switch
-    this.power_switch = new Service.Switch("Power - " + this.name, "Power");
-    this.power_switch
-    .getCharacteristic(Characteristic.On)
-    .on('get', this.isFanOn.bind(this))
-    .on('set', this.setFan.bind(this))
-    .eventEnabled = true;
+    //this.power_switch = new Service.Switch("Power - " + this.name, "Power");
+    //this.power_switch
+    //.getCharacteristic(Characteristic.On)
+    //.on('get', this.isFanOn.bind(this))
+    //.on('set', this.setFan.bind(this))
+    //.eventEnabled = true;
 }
 CoolLink.prototype.initSpecificSensors = function() {
     // Auto switch
@@ -295,8 +295,8 @@ HotCoolLink.prototype.getServices = function() {
 //        this.humidity_sensor,
 //        this.air_quality_sensor,
         this.fan,
-        this.heater_cooler,
-        this.auto_switch,
+//        this.heater_cooler,
+//        this.auto_switch,
 //        this.rotation_switch,
 //        this.night_switch,
     ];
@@ -409,9 +409,13 @@ HotCoolLink.prototype.initCommonSensors = function() {
         .on('set', this.setNight.bind(this));
     // Auto switch
     this.fan
-        .getCharacteristic(Characteristic.TargetFanState)
+        .addCharacteristic(Characteristic.TargetFanState)
         .on('get', this.isAutoOn.bind(this))
         .on('set', this.setAuto.bind(this));
+    this.fan
+        .addCharacteristic(Characteristic.CurrentHeaterCoolerState)
+        .on('get', this.getHeaterCoolerState.bind(this))
+        .on('set', this.setHeaterCoolerState.bind(this));
     //this.auto_switch
     //    .getCharacteristic(Characteristic.On)
     //    .eventEnabled = true;    
