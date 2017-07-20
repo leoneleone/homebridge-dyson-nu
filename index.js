@@ -385,11 +385,11 @@ HotCoolLink.prototype.initCommonSensors = function() {
         .getCharacteristic(Characteristic.On)
         .on('get', this.isFanOn.bind(this))
         .on('set', this.setFan.bind(this));
-
+    // Auto switch
     this.fan
-        .addCharacteristic(Characteristic.CurrentHeaterCoolerState)
-        .on('get', this.getHeaterCoolerState.bind(this))
-        .on('set', this.setHeaterCoolerState.bind(this));
+        .addCharacteristic(Characteristic.TargetFanState)
+        .on('get', this.isAutoOn.bind(this))
+        .on('set', this.setAuto.bind(this));
 
     this.fan
         .getCharacteristic(Characteristic.On)
@@ -400,6 +400,10 @@ HotCoolLink.prototype.initCommonSensors = function() {
         .on('get', this.getFanRotationSpeed.bind(this))
         .on('set', this.setFanRotationSpeed.bind(this));
     this.fan
+        .addCharacteristic(Characteristic.CurrentHeaterCoolerState)
+        .on('get', this.getHeaterCoolerState.bind(this))
+        .on('set', this.setHeaterCoolerState.bind(this));
+    this.fan
         .addCharacteristic(Characteristic.SwingMode)
         .on('get', this.isRotationOn.bind(this))
         .on('set', this.setRotation.bind(this));
@@ -407,15 +411,7 @@ HotCoolLink.prototype.initCommonSensors = function() {
         .addCharacteristic(Characteristic.NightVision)
         .on('get', this.isNightOn.bind(this))
         .on('set', this.setNight.bind(this));
-    // Auto switch
-    this.fan
-        .addCharacteristic(Characteristic.TargetFanState)
-        .on('get', this.isAutoOn.bind(this))
-        .on('set', this.setAuto.bind(this));
-    this.fan
-        .addCharacteristic(Characteristic.CurrentHeaterCoolerState)
-        .on('get', this.getHeaterCoolerState.bind(this))
-        .on('set', this.setHeaterCoolerState.bind(this));
+
     //this.auto_switch
     //    .getCharacteristic(Characteristic.On)
     //    .eventEnabled = true;    
