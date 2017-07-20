@@ -295,7 +295,7 @@ HotCoolLink.prototype.getServices = function() {
 //        this.humidity_sensor,
 //        this.air_quality_sensor,
         this.fan,
-//        this.heater_cooler,
+        this.heater_cooler,
 //        this.auto_switch,
 //        this.rotation_switch,
 //        this.night_switch,
@@ -399,10 +399,10 @@ HotCoolLink.prototype.initCommonSensors = function() {
         .setProps({minValue: 0, maxValue: 100, minStep: 10})
         .on('get', this.getFanRotationSpeed.bind(this))
         .on('set', this.setFanRotationSpeed.bind(this));
-    this.fan
-        .addCharacteristic(Characteristic.CurrentHeaterCoolerState)
-        .on('get', this.getHeaterCoolerState.bind(this))
-        .on('set', this.setHeaterCoolerState.bind(this));
+    //this.fan
+    //    .addCharacteristic(Characteristic.CurrentHeaterCoolerState)
+    //    .on('get', this.getHeaterCoolerState.bind(this))
+    //    .on('set', this.setHeaterCoolerState.bind(this));
     this.fan
         .addCharacteristic(Characteristic.SwingMode)
         .on('get', this.isRotationOn.bind(this))
